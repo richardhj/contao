@@ -1,0 +1,11 @@
+services:
+    _defaults:
+        autoconfigure: true
+
+    Contao\CoreBundle\Controller\FrontendModule\:
+        resource: ../../Controller/FrontendModule/*
+
+    contao.frontend_module.data_export:
+        class: Contao\CoreBundle\Controller\FrontendModule\DataExport
+        arguments:
+          ['@security.token_storage', '@event_dispatcher', '%kernel.project_dir%']

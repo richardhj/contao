@@ -183,6 +183,14 @@ services:
         tags:
             - { name: kernel.event_listener, event: security.switch_user, method: onSwitchUser }
 
+    contao.listener.user_data_export:
+        class: Contao\CoreBundle\EventListener\UserDataExportListener
+        tags:
+            - { name: kernel.event_listener, event: 'contao.export_user_data', method: addFrontendUserData }
+            - { name: kernel.event_listener, event: 'contao.export_user_data', method: addBackendUserData }
+        arguments:
+          ['%kernel.project_dir%']
+
     contao.listener.two_factor.frontend:
         class: Contao\CoreBundle\EventListener\TwoFactorFrontendListener
         arguments:

@@ -61,6 +61,7 @@ class ContaoCoreExtension extends Extension
 
         static $files = [
             'commands.yml',
+            'modules.yml',
             'listener.yml',
             'services.yml',
         ];

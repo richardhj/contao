@@ -24,6 +24,15 @@ final class ContaoCoreEvents
     public const BACKEND_MENU_BUILD = 'contao.backend_menu_build';
 
     /**
+     * The contao.export_user_data event is triggered when the a member or backend user request a copy of their data.
+     *
+     * @var string
+     *
+     * @see ExportUserDataEvent
+     */
+    public const EXPORT_USER_DATA = 'contao.export_user_data';
+
+    /**
      * The contao.generate_symlinks event is triggered when the symlinks are generated.
      *
      * @var string

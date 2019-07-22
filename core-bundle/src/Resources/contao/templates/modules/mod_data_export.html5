@@ -1,0 +1,14 @@
+<?php $this->extend('block_unsearchable'); ?>
+
+<?php $this->block('content'); ?>
+
+<form method="post">
+    <input type="hidden" name="FORM_SUBMIT" value="mod_export_user">
+    <input type="hidden" name="REQUEST_TOKEN" value="<?= REQUEST_TOKEN ?>">
+    <?= $this->form ?>
+    <button type="submit">Start</button>
+</form>
+
+<p class="<?= $this->type ?> message"><?= $this->message ?></p>
+
+<?php $this->endblock(); ?>
