@@ -75,6 +75,7 @@ services:
             - '@contao.framework'
             - '@contao.security.frontend_preview_authenticator'
             - '@contao.security.token_checker'
+            - '@database_connection'
         tags:
             - controller.service_arguments
 

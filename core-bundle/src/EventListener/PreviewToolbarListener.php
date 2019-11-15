@@ -158,44 +158,4 @@ final class PreviewToolbarListener
 
         $response->setContent($content);
     }
-
-//    private function getDatalistOptions()
-//    {
-//        $strGroups = '';
-//
-//        if (!$this->User->isAdmin)
-//        {
-//            // No allowed member groups
-//            if (empty($this->User->amg) || !\is_array($this->User->amg))
-//            {
-//                header('Content-type: application/json');
-//                die(json_encode(array()));
-//            }
-//
-//            $arrGroups = array();
-//
-//            foreach ($this->User->amg as $intGroup)
-//            {
-//                $arrGroups[] = '%"' . (int) $intGroup . '"%';
-//            }
-//
-//            $strGroups = " AND (groups LIKE '" . implode("' OR GROUPS LIKE '", $arrGroups) . "')";
-//        }
-//
-//        $arrUsers = array();
-//        $time = Date::floorToMinute();
-//
-//        // Get the active front end users
-//        $objUsers = $this->Database->prepare("SELECT username FROM tl_member WHERE username LIKE ?$strGroups AND login='1' AND disable!='1' AND (start='' OR start<='$time') AND (stop='' OR stop>'" . ($time + 60) . "') ORDER BY username")
-//            ->limit(10)
-//            ->execute(str_replace('%', '', Input::post('value')) . '%');
-//
-//        if ($objUsers->numRows)
-//        {
-//            $arrUsers = $objUsers->fetchEach('username');
-//        }
-//
-//        header('Content-type: application/json');
-//        die(json_encode($arrUsers));
-//    }
 }
