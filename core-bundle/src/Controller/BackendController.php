@@ -26,6 +26,7 @@ use Contao\BackendSwitch;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Picker\PickerBuilderInterface;
 use Contao\CoreBundle\Picker\PickerConfig;
+use Contao\FrontendIndex;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -107,7 +108,7 @@ class BackendController extends AbstractController
 
         $this->get('contao.framework')->initialize();
 
-        $controller = new BackendPreview();
+        $controller = new FrontendIndex();
 
         return $controller->run();
     }
