@@ -12,9 +12,15 @@ declare(strict_types=1);
 
 namespace Contao\CoreBundle\EventListener;
 
+use Contao\ArticleModel;
 use Contao\BackendUser;
+use Contao\Controller;
+use Contao\CoreBundle\Event\PreviewUrlConvertEvent;
+use Contao\CoreBundle\Exception\RedirectResponseException;
 use Contao\CoreBundle\Routing\ScopeMatcher;
 use Contao\CoreBundle\Security\Authentication\Token\TokenChecker;
+use Contao\PageModel;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
@@ -54,6 +60,8 @@ final class PreviewToolbarListener
 
     private $csrfTokenName;
 
+    private $dispatcher;
+
     public function __construct(
         string $previewScript,
         ScopeMatcher $scopeMatcher,
@@ -63,7 +71,8 @@ final class PreviewToolbarListener
         TokenChecker $tokenChecker,
         RouterInterface $router,
         CsrfTokenManagerInterface $tokenManager,
-        string $csrfTokenName
+        string $csrfTokenName,
+        EventDispatcherInterface $dispatcher
     ) {
         $this->previewScript        = $previewScript;
         $this->scopeMatcher         = $scopeMatcher;
@@ -74,6 +83,7 @@ final class PreviewToolbarListener
         $this->router               = $router;
         $this->tokenManager         = $tokenManager;
         $this->csrfTokenName        = $csrfTokenName;
+        $this->dispatcher           = $dispatcher;
     }
 
     public function onKernelResponse(ResponseEvent $event): void
@@ -109,6 +119,32 @@ final class PreviewToolbarListener
             || false !== stripos((string) $response->headers->get('Content-Disposition'), 'attachment;')
         ) {
             return;
+        }
+
+        if ($request->query->get('url')) {
+            $targetUrl = $request->getBaseUrl() . '/' . $request->query->get('url');
+            throw new RedirectResponseException($targetUrl);
+        }
+
+        if ($request->query->get('page') && null !== $page = PageModel::findWithDetails($request->query->get('page'))) {
+            $params = null;
+
+            // Add the /article/ fragment (see #673)
+            if (null !== ($article = ArticleModel::findByAlias($request->query->get('article')))) {
+                $params = sprintf(
+                    '/articles/%s%s',
+                    ($article->inColumn !== 'main') ? $article->inColumn . ':' : '',
+                    $article->id
+                );
+            }
+
+            throw new RedirectResponseException($page->getPreviewUrl($params));
+        }
+
+        $urlConvertEvent = new PreviewUrlConvertEvent();
+        $this->dispatcher->dispatch($urlConvertEvent);
+        if (null !== $targetUrl = $urlConvertEvent->getUrl()) {
+            throw new RedirectResponseException($targetUrl);
         }
 
         try {
