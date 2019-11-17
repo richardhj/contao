@@ -14,10 +14,10 @@ namespace Contao\CoreBundle\EventListener;
 
 use Contao\ArticleModel;
 use Contao\BackendUser;
-use Contao\Controller;
 use Contao\CoreBundle\Event\PreviewUrlConvertEvent;
 use Contao\CoreBundle\Exception\RedirectResponseException;
 use Contao\CoreBundle\Routing\ScopeMatcher;
+use Contao\CoreBundle\Security\Authentication\FrontendPreviewAuthenticator;
 use Contao\CoreBundle\Security\Authentication\Token\TokenChecker;
 use Contao\PageModel;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -48,10 +48,6 @@ final class PreviewToolbarListener
 
     private $twig;
 
-    private $authorizationChecker;
-
-    private $tokenStorage;
-
     private $tokenChecker;
 
     private $router;
@@ -62,28 +58,27 @@ final class PreviewToolbarListener
 
     private $dispatcher;
 
+    private $frontendPreviewAuthenticator;
+
     public function __construct(
         string $previewScript,
         ScopeMatcher $scopeMatcher,
         TwigEnvironment $twig,
-        AuthorizationChecker $authorizationChecker,
-        TokenStorageInterface $tokenStorage,
         TokenChecker $tokenChecker,
         RouterInterface $router,
         CsrfTokenManagerInterface $tokenManager,
         string $csrfTokenName,
-        EventDispatcherInterface $dispatcher
+        EventDispatcherInterface $dispatcher, FrontendPreviewAuthenticator $frontendPreviewAuthenticator
     ) {
         $this->previewScript        = $previewScript;
         $this->scopeMatcher         = $scopeMatcher;
         $this->twig                 = $twig;
-        $this->authorizationChecker = $authorizationChecker;
-        $this->tokenStorage         = $tokenStorage;
         $this->tokenChecker         = $tokenChecker;
         $this->router               = $router;
         $this->tokenManager         = $tokenManager;
         $this->csrfTokenName        = $csrfTokenName;
         $this->dispatcher           = $dispatcher;
+        $this->frontendPreviewAuthenticator = $frontendPreviewAuthenticator;
     }
 
     public function onKernelResponse(ResponseEvent $event): void
@@ -121,6 +116,12 @@ final class PreviewToolbarListener
             return;
         }
 
+        // Switch to a particular member (see contao/core#6546)
+        if (($frontendUser = $request->query->get('user'))
+            && !$this->frontendPreviewAuthenticator->authenticateFrontendUser($frontendUser, false)) {
+            $this->frontendPreviewAuthenticator->removeFrontendAuthentication();
+        }
+
         if ($request->query->get('url')) {
             $targetUrl = $request->getBaseUrl() . '/' . $request->query->get('url');
             throw new RedirectResponseException($targetUrl);
@@ -129,7 +130,7 @@ final class PreviewToolbarListener
         if ($request->query->get('page') && null !== $page = PageModel::findWithDetails($request->query->get('page'))) {
             $params = null;
 
-            // Add the /article/ fragment (see #673)
+            // Add the /article/ fragment (see contao/core-bundle#673)
             if (null !== ($article = ArticleModel::findByAlias($request->query->get('article')))) {
                 $params = sprintf(
                     '/articles/%s%s',
@@ -145,6 +146,11 @@ final class PreviewToolbarListener
         $this->dispatcher->dispatch($urlConvertEvent);
         if (null !== $targetUrl = $urlConvertEvent->getUrl()) {
             throw new RedirectResponseException($targetUrl);
+        }
+
+        // After front end preview authentication, reload page (after no redirect was done already)
+        if (null !== $frontendUser) {
+            throw new RedirectResponseException($request->getBaseUrl().$request->getPathInfo());
         }
 
         try {
