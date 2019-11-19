@@ -56,7 +56,7 @@ final class BackendPreviewSwitchController
     }
 
     /**
-     * @Route("/_contao/preview_switch", name="contao_backend_preview_switch")
+     * @Route("/contao/preview_switch", name="contao_backend_preview_switch")
      */
     public function __invoke(Request $request): Response
     {
