@@ -24,7 +24,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Core\Security;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Twig\Environment as TwigEnvironment;
+use Twig\Error\Error as TwigError;
 
 /**
  * This controller serves for the back end preview toolbar by providing two ajax endpoints:
@@ -46,18 +50,34 @@ final class BackendPreviewSwitchController
 
     private $security;
 
+    private $twig;
+
+    private $tokenManager;
+
+    private $csrfTokenName;
+
+    private $router;
+
     public function __construct(
         ContaoFramework $contaoFramework,
         FrontendPreviewAuthenticator $frontendPreviewAuthenticator,
         TokenChecker $tokenChecker,
         Connection $connection,
-        Security $security
+        Security $security,
+        TwigEnvironment $twig,
+        RouterInterface $router,
+        CsrfTokenManagerInterface $tokenManager,
+        string $csrfTokenName
     ) {
         $this->contaoFramework              = $contaoFramework;
         $this->frontendPreviewAuthenticator = $frontendPreviewAuthenticator;
         $this->tokenChecker                 = $tokenChecker;
         $this->connection                   = $connection;
         $this->security                     = $security;
+        $this->twig                         = $twig;
+        $this->router                       = $router;
+        $this->tokenManager                 = $tokenManager;
+        $this->csrfTokenName                = $csrfTokenName;
     }
 
     /**
@@ -69,7 +89,13 @@ final class BackendPreviewSwitchController
 
         $user = $this->security->getUser();
         if (!($user instanceof BackendUser) || !$request->isXmlHttpRequest()) {
-            throw new PageNotFoundException();
+            throw new PageNotFoundException('Bad response');
+        }
+
+        if ($request->isMethod('GET')) {
+            $toolbar = $this->renderToolbar($user);
+
+            return Response::create($toolbar);
         }
 
         if ('tl_switch' === $request->request->get('FORM_SUBMIT')) {
@@ -85,6 +111,35 @@ final class BackendPreviewSwitchController
         }
 
         return Response::create('', 404);
+    }
+
+    /**
+     * @throws TwigError
+     */
+    private function renderToolbar(BackendUser $user)
+    {
+        $canSwitchUser    = ($user->isAdmin || (!empty($user->amg) && \is_array($user->amg)));
+        $frontendUsername = $this->tokenChecker->getFrontendUsername();
+        $showUnpublished  = $this->tokenChecker->isPreviewMode();
+
+        $toolbar = str_replace(
+            "\n",
+            //'',
+            PHP_EOL,
+            $this->twig->render(
+                '@ContaoCore/Frontend/preview_toolbar_base.html.twig',
+                [
+                    'uniqid'        => 'bpt' . substr(uniqid('', true), 0, 5),
+                    'request_token' => $this->tokenManager->getToken($this->csrfTokenName)->getValue(),
+                    'action'        => $this->router->generate('contao_backend_preview_switch'),
+                    'canSwitchUser' => $canSwitchUser,
+                    'user'          => $frontendUsername,
+                    'show'          => $showUnpublished
+                ]
+            )
+        );
+
+        return $toolbar;
     }
 
     private function authenticatePreview(BackendUser $user, Request $request): void

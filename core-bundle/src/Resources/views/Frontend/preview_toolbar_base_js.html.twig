@@ -1,31 +1,5 @@
 <div id="{{ uniqid }}">
-    <form action="{{ action }}" method="post">
-        <div class="formbody">
-            <input type="hidden" name="FORM_SUBMIT" value="tl_switch">
-            <input type="hidden" name="REQUEST_TOKEN" value="{{ request_token }}">
-            {% if canSwitchUser %}
-                <label for="ctrl_user">{{ 'MSC.feUser'|trans([], 'contao_default') }}:</label>
-                <input type="text"
-                       name="user"
-                       id="ctrl_user"
-                       list="userlist"
-                       class="tl_text user"
-                       placeholder="{{ 'MSC.username'|trans([], 'contao_default') }}"
-                       value="{{ user }}"
-                       autocomplete="off">
-                <datalist id="userlist">
-                    <option value="-"></option>
-                </datalist>
-            {% endif %}
-            <label for="ctrl_unpublished">{{ 'MSC.hiddenElements'|trans([], 'contao_default') }}:</label>
-            <select name="unpublished" id="ctrl_unpublished" class="tl_select">
-                <option value="hide">{{ 'MSC.hiddenHide'|trans([], 'contao_default') }}</option>
-                <option value="show"{% if show %} selected{% endif %}>{{ 'MSC.hiddenShow'|trans([], 'contao_default') }}</option>
-            </select>
-            <button type="submit" class="tl_submit">{{ 'MSC.apply'|trans([], 'contao_default') }}</button>
-            <a href="" class="close">&times;</a>
-        </div>
-    </form>
+
 </div>
 
 <style>
@@ -40,7 +14,7 @@
         z-index: 99999;
     }
 
-    [id="{{ uniqid }}"] form.ajax-loading {
+    [id="{{ uniqid }}"].ajax-loading {
         pointer-events: none;
         opacity: 0.5;
     }
@@ -106,10 +80,7 @@
 </style>
 <script>/*<![CDATA[*/
     (function () {
-        const form = document.querySelector('[id="{{ uniqid }}"] input[name="FORM_SUBMIT"][value="tl_switch"]').form;
-        if (!form) {
-            return;
-        }
+        const toolbar = document.querySelector('[id="{{ uniqid }}"]');
 
         function request(method, uri, body, callback, addClass = true) {
             body = body || null;
@@ -118,54 +89,72 @@
             request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
             if (addClass) {
-                form.classList.add('ajax-loading');
+                toolbar.classList.add('ajax-loading');
             }
 
             request.onload = function () {
-                form.classList.remove('ajax-loading');
+                toolbar.classList.remove('ajax-loading');
 
                 callback.apply(this);
             };
             request.send(body)
         }
 
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-            const formData = new FormData(form);
+        function registerFormListeners(form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const formData = new FormData(form);
 
-            request('POST', form.action, formData, function () {
-                if (200 === this.status) {
-                    location.reload();
-                } else {
-                    location.reload();
-                }
+                request('POST', form.action, formData, function () {
+                    if (200 === this.status) {
+                        location.reload();
+                    } else {
+                        location.reload();
+                    }
+                });
             });
-        });
 
-        if (document.createElement('datalist') && window.HTMLDataListElement) {
-            const userField = form.querySelector('input[name="user"]');
-            const userList = form.querySelector('datalist[id="userlist"]');
+            if (document.createElement('datalist') && window.HTMLDataListElement) {
+                const userField = form.querySelector('input[name="user"]');
+                const userList = form.querySelector('datalist[id="userlist"]');
 
-            userField.addEventListener('keyup', function () {
-                if (userField.value.length < 2) {
+                userField.addEventListener('keyup', function () {
+                    if (userField.value.length < 2) {
+                        return;
+                    }
+
+                    const body = {
+                        FORM_SUBMIT: 'datalist_members',
+                        REQUEST_TOKEN: form.querySelector('input[name="REQUEST_TOKEN"]').value,
+                        value: userField.value
+                    };
+
+                    request('POST', form.action, new URLSearchParams(body), function () {
+                        userList.innerHTML = '';
+                        JSON.parse(this.response).forEach(item => {
+                            const option = document.createElement('option');
+                            option.value = item;
+                            userList.appendChild(option);
+                        });
+                    }, false);
+                });
+            }
+        }
+
+        // Fetch toolbar
+        request('GET', '{{ action }}', null, function () {
+            if (200 === this.status) {
+                toolbar.innerHTML = this.responseText;
+
+                const form = toolbar.querySelector('input[name="FORM_SUBMIT"][value="tl_switch"]').form;
+                if (!form) {
                     return;
                 }
 
-                const body = {
-                    FORM_SUBMIT: 'datalist_members',
-                    REQUEST_TOKEN: form.querySelector('input[name="REQUEST_TOKEN"]').value,
-                    value: userField.value
-                };
-
-                request('POST', form.action, new URLSearchParams(body), function () {
-                    userList.innerHTML = '';
-                    JSON.parse(this.response).forEach(item => {
-                        const option = document.createElement('option');
-                        option.value = item;
-                        userList.appendChild(option);
-                    });
-                }, false);
-            });
-        }
+                registerFormListeners(form);
+            } else {
+                toolbar.innerHTML = '<p>Error</p>';
+            }
+        });
     })();
     /*]]>*/</script>

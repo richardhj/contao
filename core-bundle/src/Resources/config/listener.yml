@@ -138,10 +138,7 @@ services:
             - '%contao.preview_script%'
             - '@contao.routing.scope_matcher'
             - '@twig'
-            - '@contao.security.token_checker'
             - '@router'
-            - '@contao.csrf.token_manager'
-            - '%contao.csrf_token_name%'
         tags:
             - { name: kernel.event_listener, event: kernel.response, method: onKernelResponse }
 

@@ -13,22 +13,20 @@ declare(strict_types=1);
 namespace Contao\CoreBundle\EventListener;
 
 use Contao\CoreBundle\Routing\ScopeMatcher;
-use Contao\CoreBundle\Security\Authentication\Token\TokenChecker;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\Routing\RouterInterface;
-use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment as TwigEnvironment;
 use Twig\Error\Error as TwigError;
 
 /**
- * PreviewToolbarListener injects the back end preview switch toolbar.
+ * PreviewToolbarListener injects the back end preview toolbar on any response within the /preview.php entry point.
  *
  * The onKernelResponse method must be connected to the kernel.response event.
  *
  * The toolbar is only injected on well-formed HTML (with a proper <body> tag).
- * This means that the WDT is never included in sub-requests or ESI requests.
+ * This means that the toolbar is never included in sub-requests or ESI requests.
  */
 final class PreviewToolbarListener
 {
@@ -39,30 +37,18 @@ final class PreviewToolbarListener
 
     private $twig;
 
-    private $tokenChecker;
-
     private $router;
-
-    private $tokenManager;
-
-    private $csrfTokenName;
 
     public function __construct(
         string $previewScript,
         ScopeMatcher $scopeMatcher,
         TwigEnvironment $twig,
-        TokenChecker $tokenChecker,
-        RouterInterface $router,
-        CsrfTokenManagerInterface $tokenManager,
-        string $csrfTokenName
+        RouterInterface $router
     ) {
         $this->previewScript = $previewScript;
         $this->scopeMatcher  = $scopeMatcher;
         $this->twig          = $twig;
-        $this->tokenChecker  = $tokenChecker;
         $this->router        = $router;
-        $this->tokenManager  = $tokenManager;
-        $this->csrfTokenName = $csrfTokenName;
     }
 
     public function onKernelResponse(ResponseEvent $event): void
@@ -109,23 +95,16 @@ final class PreviewToolbarListener
             return;
         }
 
-        $canSwitchUser    = false;//($user->isAdmin || (!empty($user->amg) && \is_array($user->amg)));
-        $frontendUsername = $this->tokenChecker->getFrontendUsername();
-        $showUnpublished  = $this->tokenChecker->isPreviewMode();
-
         $toolbar = str_replace(
             "\n",
-            '',
+            //'',
+            PHP_EOL,
             $this->twig->render(
-                '@ContaoCore/Backend/preview_toolbar.html.twig',
+                '@ContaoCore/Frontend/preview_toolbar_base_js.html.twig',
                 [
-                    'uniqid'        => 'bpt' . substr(uniqid('', true), 0, 5),
-                    'canSwitchUser' => $canSwitchUser,
-                    'request_token' => $this->tokenManager->getToken($this->csrfTokenName)->getValue(),
-                    'action'        => $this->router->generate('contao_backend_preview_switch'),
-                    'user'          => $frontendUsername,
-                    'show'          => $showUnpublished,
-                    'request'       => $request,
+                    'uniqid'  => 'bpt' . substr(uniqid('', true), 0, 5),
+                    'action'  => $this->router->generate('contao_backend_preview_switch'),
+                    'request' => $request,
                 ]
             )
         );
