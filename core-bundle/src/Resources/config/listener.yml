@@ -142,8 +142,6 @@ services:
             - '@router'
             - '@contao.csrf.token_manager'
             - '%contao.csrf_token_name%'
-            - '@event_dispatcher'
-            - '@contao.security.frontend_preview_authenticator'
         tags:
             - { name: kernel.event_listener, event: kernel.response, method: onKernelResponse }
 

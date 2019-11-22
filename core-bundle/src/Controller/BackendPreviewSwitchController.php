@@ -24,6 +24,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Core\Security;
 
 /**
  * This controller serves for the back end preview toolbar by providing two ajax endpoints:
@@ -43,16 +44,20 @@ final class BackendPreviewSwitchController
 
     private $connection;
 
+    private $security;
+
     public function __construct(
         ContaoFramework $contaoFramework,
         FrontendPreviewAuthenticator $frontendPreviewAuthenticator,
         TokenChecker $tokenChecker,
-        Connection $connection
+        Connection $connection,
+        Security $security
     ) {
         $this->contaoFramework              = $contaoFramework;
         $this->frontendPreviewAuthenticator = $frontendPreviewAuthenticator;
         $this->tokenChecker                 = $tokenChecker;
         $this->connection                   = $connection;
+        $this->security                     = $security;
     }
 
     /**
@@ -62,8 +67,8 @@ final class BackendPreviewSwitchController
     {
         $this->contaoFramework->initialize(false);
 
-        $user = BackendUser::getInstance();
-        if (null === $user || !$request->isXmlHttpRequest()) {
+        $user = $this->security->getUser();
+        if (!($user instanceof BackendUser) || !$request->isXmlHttpRequest()) {
             throw new PageNotFoundException();
         }
 

@@ -76,6 +76,12 @@ services:
             - '@contao.security.frontend_preview_authenticator'
             - '@contao.security.token_checker'
             - '@database_connection'
+            - '@security.helper'
+        tags:
+            - controller.service_arguments
+
+    Contao\CoreBundle\Controller\BackendPreviewController:
+        arguments: ['@contao.framework', '%contao.preview_script%', '@contao.security.frontend_preview_authenticator', '@event_dispatcher', '@router', '@security.authorization_checker']
         tags:
             - controller.service_arguments
 

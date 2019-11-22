@@ -96,24 +96,6 @@ class BackendController extends AbstractController
     }
 
     /**
-     * @Route("/contao/preview", name="contao_backend_preview")
-     */
-    public function previewAction(Request $request): Response
-    {
-        $previewScript = $this->getParameter('contao.preview_script');
-
-        if ($request->getScriptName() !== $previewScript) {
-            return $this->redirect($previewScript.$request->getRequestUri());
-        }
-
-        $this->get('contao.framework')->initialize();
-
-        $controller = new FrontendIndex();
-
-        return $controller->run();
-    }
-
-    /**
      * @Route("/contao/confirm", name="contao_backend_confirm")
      */
     public function confirmAction(): Response

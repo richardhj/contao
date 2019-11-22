@@ -12,21 +12,12 @@ declare(strict_types=1);
 
 namespace Contao\CoreBundle\EventListener;
 
-use Contao\ArticleModel;
-use Contao\BackendUser;
-use Contao\CoreBundle\Event\PreviewUrlConvertEvent;
-use Contao\CoreBundle\Exception\RedirectResponseException;
 use Contao\CoreBundle\Routing\ScopeMatcher;
-use Contao\CoreBundle\Security\Authentication\FrontendPreviewAuthenticator;
 use Contao\CoreBundle\Security\Authentication\Token\TokenChecker;
-use Contao\PageModel;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\Routing\RouterInterface;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Authorization\AuthorizationChecker;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment as TwigEnvironment;
 use Twig\Error\Error as TwigError;
@@ -56,10 +47,6 @@ final class PreviewToolbarListener
 
     private $csrfTokenName;
 
-    private $dispatcher;
-
-    private $frontendPreviewAuthenticator;
-
     public function __construct(
         string $previewScript,
         ScopeMatcher $scopeMatcher,
@@ -67,18 +54,15 @@ final class PreviewToolbarListener
         TokenChecker $tokenChecker,
         RouterInterface $router,
         CsrfTokenManagerInterface $tokenManager,
-        string $csrfTokenName,
-        EventDispatcherInterface $dispatcher, FrontendPreviewAuthenticator $frontendPreviewAuthenticator
+        string $csrfTokenName
     ) {
-        $this->previewScript        = $previewScript;
-        $this->scopeMatcher         = $scopeMatcher;
-        $this->twig                 = $twig;
-        $this->tokenChecker         = $tokenChecker;
-        $this->router               = $router;
-        $this->tokenManager         = $tokenManager;
-        $this->csrfTokenName        = $csrfTokenName;
-        $this->dispatcher           = $dispatcher;
-        $this->frontendPreviewAuthenticator = $frontendPreviewAuthenticator;
+        $this->previewScript = $previewScript;
+        $this->scopeMatcher  = $scopeMatcher;
+        $this->twig          = $twig;
+        $this->tokenChecker  = $tokenChecker;
+        $this->router        = $router;
+        $this->tokenManager  = $tokenManager;
+        $this->csrfTokenName = $csrfTokenName;
     }
 
     public function onKernelResponse(ResponseEvent $event): void
@@ -94,17 +78,8 @@ final class PreviewToolbarListener
             return;
         }
 
-        // Ignore redirects and errors
-        if (200 !== $response->getStatusCode()) {
-            return;
-        }
-
-        // Do not capture redirects or modify XML HTTP Requests
-        if ($request->isXmlHttpRequest()) {
-            return;
-        }
-
-        if (null === $user = BackendUser::getInstance()) {
+        // Do not capture redirects, errors, or modify XML HTTP Requests
+        if (!$response->isOk() || $request->isXmlHttpRequest()) {
             return;
         }
 
@@ -116,45 +91,8 @@ final class PreviewToolbarListener
             return;
         }
 
-        // Switch to a particular member (see contao/core#6546)
-        if (($frontendUser = $request->query->get('user'))
-            && !$this->frontendPreviewAuthenticator->authenticateFrontendUser($frontendUser, false)) {
-            $this->frontendPreviewAuthenticator->removeFrontendAuthentication();
-        }
-
-        if ($request->query->get('url')) {
-            $targetUrl = $request->getBaseUrl() . '/' . $request->query->get('url');
-            throw new RedirectResponseException($targetUrl);
-        }
-
-        if ($request->query->get('page') && null !== $page = PageModel::findWithDetails($request->query->get('page'))) {
-            $params = null;
-
-            // Add the /article/ fragment (see contao/core-bundle#673)
-            if (null !== ($article = ArticleModel::findByAlias($request->query->get('article')))) {
-                $params = sprintf(
-                    '/articles/%s%s',
-                    ($article->inColumn !== 'main') ? $article->inColumn . ':' : '',
-                    $article->id
-                );
-            }
-
-            throw new RedirectResponseException($page->getPreviewUrl($params));
-        }
-
-        $urlConvertEvent = new PreviewUrlConvertEvent();
-        $this->dispatcher->dispatch($urlConvertEvent);
-        if (null !== $targetUrl = $urlConvertEvent->getUrl()) {
-            throw new RedirectResponseException($targetUrl);
-        }
-
-        // After front end preview authentication, reload page (after no redirect was done already)
-        if (null !== $frontendUser) {
-            throw new RedirectResponseException($request->getBaseUrl().$request->getPathInfo());
-        }
-
         try {
-            $this->injectToolbar($response, $request, $user);
+            $this->injectToolbar($response, $request);
         } catch (TwigError $e) {
         }
     }
@@ -163,7 +101,7 @@ final class PreviewToolbarListener
     /**
      * @throws TwigError
      */
-    private function injectToolbar(Response $response, Request $request, BackendUser $user): void
+    private function injectToolbar(Response $response, Request $request): void
     {
         $content = $response->getContent();
 
@@ -171,7 +109,7 @@ final class PreviewToolbarListener
             return;
         }
 
-        $canSwitchUser    = ($user->isAdmin || (!empty($user->amg) && \is_array($user->amg)));
+        $canSwitchUser    = false;//($user->isAdmin || (!empty($user->amg) && \is_array($user->amg)));
         $frontendUsername = $this->tokenChecker->getFrontendUsername();
         $showUnpublished  = $this->tokenChecker->isPreviewMode();
 
