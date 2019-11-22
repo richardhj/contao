@@ -28,9 +28,8 @@ use Twig\Error\Error as TwigError;
  * The toolbar is only injected on well-formed HTML (with a proper <body> tag).
  * This means that the toolbar is never included in sub-requests or ESI requests.
  */
-final class PreviewToolbarListener
+class PreviewToolbarListener
 {
-
     private $scopeMatcher;
 
     private $previewScript;
@@ -46,9 +45,9 @@ final class PreviewToolbarListener
         RouterInterface $router
     ) {
         $this->previewScript = $previewScript;
-        $this->scopeMatcher  = $scopeMatcher;
-        $this->twig          = $twig;
-        $this->router        = $router;
+        $this->scopeMatcher = $scopeMatcher;
+        $this->twig = $twig;
+        $this->router = $router;
     }
 
     public function onKernelResponse(ResponseEvent $event): void
@@ -57,7 +56,7 @@ final class PreviewToolbarListener
             return;
         }
 
-        $request  = $event->getRequest();
+        $request = $event->getRequest();
         $response = $event->getResponse();
 
         if ($request->getScriptName() !== $this->previewScript) {
@@ -83,7 +82,6 @@ final class PreviewToolbarListener
         }
     }
 
-
     /**
      * @throws TwigError
      */
@@ -97,21 +95,20 @@ final class PreviewToolbarListener
 
         $toolbar = str_replace(
             "\n",
-            //'',
-            PHP_EOL,
+            '',
             $this->twig->render(
                 '@ContaoCore/Frontend/preview_toolbar_base_js.html.twig',
                 [
-                    'uniqid'  => 'bpt' . substr(uniqid('', true), 0, 5),
-                    'action'  => $this->router->generate('contao_backend_preview_switch'),
+                    'uniqid' => 'bpt'.substr(uniqid('', true), 0, 5),
+                    'action' => $this->router->generate('contao_backend_preview_switch'),
                     'request' => $request,
                 ]
             )
         );
 
         $content = preg_replace(
-            "/<body[\s\S]*?>/",
-            "\$0\n" . $toolbar . "\n",
+            '/<body[\\s\\S]*?>/',
+            "\$0\n".$toolbar."\n",
             $content
         );
 

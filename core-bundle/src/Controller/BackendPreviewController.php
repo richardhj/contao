@@ -28,13 +28,13 @@ use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
 /**
- * This controller
+ * This controller handles the back end preview call and redirects to the requested front end page while ensuring the
+ * /preview.php entry point is used. When requested, the front end user gets authenticated.
  *
  * @Route(defaults={"_scope" = "backend"})
  */
-final class BackendPreviewController
+class BackendPreviewController
 {
-
     private $contaoFramework;
 
     private $previewScript;
@@ -55,12 +55,12 @@ final class BackendPreviewController
         RouterInterface $router,
         AuthorizationCheckerInterface $authorizationChecker
     ) {
-        $this->contaoFramework              = $contaoFramework;
-        $this->previewScript                = $previewScript;
+        $this->contaoFramework = $contaoFramework;
+        $this->previewScript = $previewScript;
         $this->frontendPreviewAuthenticator = $frontendPreviewAuthenticator;
-        $this->dispatcher                   = $dispatcher;
-        $this->router                       = $router;
-        $this->authorizationChecker         = $authorizationChecker;
+        $this->dispatcher = $dispatcher;
+        $this->router = $router;
+        $this->authorizationChecker = $authorizationChecker;
     }
 
     /**
@@ -69,7 +69,7 @@ final class BackendPreviewController
     public function __invoke(Request $request): Response
     {
         if ($request->getScriptName() !== $this->previewScript) {
-            throw new RedirectResponseException($this->previewScript . $request->getRequestUri());
+            throw new RedirectResponseException($this->previewScript.$request->getRequestUri());
         }
 
         $this->contaoFramework->initialize(false);
@@ -85,7 +85,7 @@ final class BackendPreviewController
         }
 
         if ($request->query->get('url')) {
-            $targetUrl = $request->getBaseUrl() . '/' . $request->query->get('url');
+            $targetUrl = $request->getBaseUrl().'/'.$request->query->get('url');
             throw new RedirectResponseException($targetUrl);
         }
 
@@ -96,7 +96,7 @@ final class BackendPreviewController
             if (null !== ($article = ArticleModel::findByAlias($request->query->get('article')))) {
                 $params = sprintf(
                     '/articles/%s%s',
-                    ($article->inColumn !== 'main') ? $article->inColumn . ':' : '',
+                    ('main' !== $article->inColumn) ? $article->inColumn.':' : '',
                     $article->id
                 );
             }
@@ -106,6 +106,7 @@ final class BackendPreviewController
 
         $urlConvertEvent = new PreviewUrlConvertEvent();
         $this->dispatcher->dispatch($urlConvertEvent);
+
         if (null !== $targetUrl = $urlConvertEvent->getUrl()) {
             throw new RedirectResponseException($targetUrl);
         }

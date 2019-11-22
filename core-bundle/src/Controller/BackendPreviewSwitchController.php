@@ -31,15 +31,15 @@ use Twig\Environment as TwigEnvironment;
 use Twig\Error\Error as TwigError;
 
 /**
- * This controller serves for the back end preview toolbar by providing two ajax endpoints:
- * a) Providing members' usernames for the datalist
- * b) Process the switch action (i.e. log in a specific front end user)
+ * This controller serves for the back end preview toolbar by providing the following ajax endpoints:
+ * a) Return the toolbar html (dispatched in an ajax request to allow lazy loading and force back end scope)
+ * b) Provide members' usernames for the datalist
+ * c) Process the switch action (i.e. log in a specific front end user).
  *
  * @Route(defaults={"_scope" = "backend"})
  */
-final class BackendPreviewSwitchController
+class BackendPreviewSwitchController
 {
-
     private $contaoFramework;
 
     private $frontendPreviewAuthenticator;
@@ -69,15 +69,15 @@ final class BackendPreviewSwitchController
         CsrfTokenManagerInterface $tokenManager,
         string $csrfTokenName
     ) {
-        $this->contaoFramework              = $contaoFramework;
+        $this->contaoFramework = $contaoFramework;
         $this->frontendPreviewAuthenticator = $frontendPreviewAuthenticator;
-        $this->tokenChecker                 = $tokenChecker;
-        $this->connection                   = $connection;
-        $this->security                     = $security;
-        $this->twig                         = $twig;
-        $this->router                       = $router;
-        $this->tokenManager                 = $tokenManager;
-        $this->csrfTokenName                = $csrfTokenName;
+        $this->tokenChecker = $tokenChecker;
+        $this->connection = $connection;
+        $this->security = $security;
+        $this->twig = $twig;
+        $this->router = $router;
+        $this->tokenManager = $tokenManager;
+        $this->csrfTokenName = $csrfTokenName;
     }
 
     /**
@@ -88,6 +88,7 @@ final class BackendPreviewSwitchController
         $this->contaoFramework->initialize(false);
 
         $user = $this->security->getUser();
+
         if (!($user instanceof BackendUser) || !$request->isXmlHttpRequest()) {
             throw new PageNotFoundException('Bad response');
         }
@@ -118,35 +119,31 @@ final class BackendPreviewSwitchController
      */
     private function renderToolbar(BackendUser $user)
     {
-        $canSwitchUser    = ($user->isAdmin || (!empty($user->amg) && \is_array($user->amg)));
+        $canSwitchUser = ($user->isAdmin || (!empty($user->amg) && \is_array($user->amg)));
         $frontendUsername = $this->tokenChecker->getFrontendUsername();
-        $showUnpublished  = $this->tokenChecker->isPreviewMode();
+        $showUnpublished = $this->tokenChecker->isPreviewMode();
 
-        $toolbar = str_replace(
+        return str_replace(
             "\n",
-            //'',
-            PHP_EOL,
+            '',
             $this->twig->render(
                 '@ContaoCore/Frontend/preview_toolbar_base.html.twig',
                 [
-                    'uniqid'        => 'bpt' . substr(uniqid('', true), 0, 5),
                     'request_token' => $this->tokenManager->getToken($this->csrfTokenName)->getValue(),
-                    'action'        => $this->router->generate('contao_backend_preview_switch'),
+                    'action' => $this->router->generate('contao_backend_preview_switch'),
                     'canSwitchUser' => $canSwitchUser,
-                    'user'          => $frontendUsername,
-                    'show'          => $showUnpublished
+                    'user' => $frontendUsername,
+                    'show' => $showUnpublished,
                 ]
             )
         );
-
-        return $toolbar;
     }
 
     private function authenticatePreview(BackendUser $user, Request $request): void
     {
-        $canSwitchUser    = $this->isAllowedToAccessMembers($user);
+        $canSwitchUser = $this->isAllowedToAccessMembers($user);
         $frontendUsername = $this->tokenChecker->getFrontendUsername();
-        $showUnpublished  = 'hide' !== $request->request->get('unpublished');
+        $showUnpublished = 'hide' !== $request->request->get('unpublished');
 
         if ($canSwitchUser) {
             $frontendUsername = $request->request->get('user') ?: null;
@@ -170,12 +167,12 @@ final class BackendPreviewSwitchController
         if (!$user->isAdmin) {
             $groups = array_map(
                 static function ($groupId) {
-                    return '%"' . (int) $groupId . '"%';
+                    return '%"'.(int) $groupId.'"%';
                 },
                 $user->amg
             );
 
-            $andWhereGroups = "AND (groups LIKE '" . implode("' OR GROUPS LIKE '", $groups) . "')";
+            $andWhereGroups = "AND (groups LIKE '".implode("' OR GROUPS LIKE '", $groups)."')";
         }
 
         $time = Date::floorToMinute();
@@ -183,7 +180,7 @@ final class BackendPreviewSwitchController
         // Get the active front end users
         $result = $this->connection->executeQuery(
             sprintf(
-                <<<SQL
+                <<<'SQL'
 SELECT username 
 FROM tl_member 
 WHERE username LIKE ?
@@ -196,7 +193,7 @@ SQL
                 $time,
                 $time + 60
             ),
-            [str_replace('%', '', $request->request->get('value')) . '%']
+            [str_replace('%', '', $request->request->get('value')).'%']
         );
 
         return $result->fetchAll(FetchMode::COLUMN);
@@ -204,6 +201,6 @@ SQL
 
     private function isAllowedToAccessMembers(BackendUser $user): bool
     {
-        return ($user->isAdmin || (!empty($user->amg) && \is_array($user->amg)));
+        return $user->isAdmin || (!empty($user->amg) && \is_array($user->amg));
     }
 }
