@@ -1,0 +1,8 @@
+{% for name,section in sections %}
+    <div class="cto-toolbar__sections">
+        <div class="cto-toolbar__section cto-toolbar__section--{{ name }}">
+            {{ section|raw }}
+        </div>
+    </div>
+    <div class="cto-toolbar__close"><a href="">&times;</a></div>
+{% endfor %}

@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Contao\CoreBundle\DependencyInjection;
 
+use Contao\CoreBundle\FrontendPreview\ToolbarProviderInterface;
 use Contao\CoreBundle\Picker\PickerProviderInterface;
 use Contao\CoreBundle\Search\Indexer\IndexerInterface;
 use Imagine\Exception\RuntimeException;
@@ -94,6 +95,10 @@ class ContaoCoreExtension extends Extension
         $container
             ->registerForAutoconfiguration(PickerProviderInterface::class)
             ->addTag('contao.picker_provider')
+        ;
+        $container
+            ->registerForAutoconfiguration(ToolbarProviderInterface::class)
+            ->addTag('contao.preview_provider')
         ;
     }
 

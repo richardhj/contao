@@ -78,9 +78,7 @@ services:
             - '@database_connection'
             - '@security.helper'
             - '@twig'
-            - '@router'
-            - '@contao.csrf.token_manager'
-            - '%contao.csrf_token_name%'
+            - '@contao.preview_provider_manager'
         tags:
             - controller.service_arguments
 
@@ -697,3 +695,16 @@ services:
             - '@request_stack'
             - '@contao.framework'
             - '@contao.routing.scope_matcher'
+
+    contao.preview_provider_manager:
+        class: Contao\CoreBundle\FrontendPreview\FrontendPreviewProviderManager
+
+    Contao\CoreBundle\FrontendPreview\PreviewAuthenticatorToolbarProvider:
+      arguments:
+        - '@contao.security.token_checker'
+        - '@twig'
+        - '@router'
+        - '@contao.csrf.token_manager'
+        - '%contao.csrf_token_name%'
+      tags:
+        - { name: contao.preview_provider }
