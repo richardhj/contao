@@ -25,8 +25,8 @@
                     <option value="hide">{{ 'MSC.hiddenHide'|trans([], 'contao_default') }}</option>
                     <option value="show"{% if show %} selected{% endif %}>{{ 'MSC.hiddenShow'|trans([], 'contao_default') }}</option>
                 </select>
-                <button type="submit" class="tl_submit">{{ 'MSC.apply'|trans([], 'contao_default') }}</button>
             </div>
+            <button type="submit" class="tl_submit">{{ 'MSC.apply'|trans([], 'contao_default') }}</button>
         </div>
     </form>
 {% endblock %}
@@ -92,10 +92,18 @@ window.addEventListener("cto-toolbar-loaded", function () {
             justify-content: flex-end;
         }
 
-        .cto-toolbar__section--authenticator .formbody > div {
+        [data-orientation="vertical"] .cto-toolbar__section--authenticator .formbody {
+            display: block;
+        }
+
+        [data-orientation="horizontal"] .cto-toolbar__section--authenticator .formbody > div {
             display: flex;
             align-items: baseline;
             margin-left: 1em;
+        }
+
+        [data-orientation="vertical"] .cto-toolbar__section--authenticator .formbody > * {
+            margin-top: 1em;
         }
 
         .cto-toolbar__section--authenticator label {
@@ -104,7 +112,7 @@ window.addEventListener("cto-toolbar-loaded", function () {
             font-weight: 500;
         }
 
-        .cto-toolbar .tl_text {
+        .cto-toolbar__section--authenticator input[type="text"] {
             margin: 2px 0;
             box-sizing: border-box;
             padding: 5px 6px 6px;
@@ -113,6 +121,10 @@ window.addEventListener("cto-toolbar-loaded", function () {
             background-color: #fff;
             -moz-appearance: none;
             -webkit-appearance: none;
+        }
+
+        [data-orientation="vertical"] .cto-toolbar__section--authenticator input[type="text"], [data-orientation="vertical"] .cto-toolbar__section--authenticator select {
+            width: 100%;
         }
 
         .cto-toolbar .tl_select {
@@ -129,7 +141,7 @@ window.addEventListener("cto-toolbar-loaded", function () {
             -webkit-appearance: none;
         }
 
-        .cto-toolbar .tl_submit {
+        .cto-toolbar__section--authenticator .tl_submit {
             padding: .175em 1em;
             border: 1px solid #aaa;
             border-radius: 2px;
@@ -139,6 +151,9 @@ window.addEventListener("cto-toolbar-loaded", function () {
             transition: background .2s ease;
             font-family: inherit;
             font-size: 1em;
+        }
+
+        [data-orientation="horizontal"] .cto-toolbar__section--authenticator .tl_submit {
             margin-left: 1em;
         }
 

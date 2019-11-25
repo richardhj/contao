@@ -707,4 +707,4 @@ services:
         - '@contao.csrf.token_manager'
         - '%contao.csrf_token_name%'
       tags:
-        - { name: contao.preview_provider }
+        - { name: contao.preview_provider, priority: 100 }
