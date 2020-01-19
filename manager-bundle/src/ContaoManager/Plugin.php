@@ -366,10 +366,10 @@ class Plugin implements BundlePluginInterface, ConfigPluginInterface, RoutingPlu
         $userPassword = '';
 
         if ($user = $container->getParameter('database_user')) {
-            $userPassword = $user;
+            $userPassword = $this->encodeUrlParemter($user);
 
             if ($password = $container->getParameter('database_password')) {
-                $userPassword .= ':'.$password;
+                $userPassword .= ':'.$this->encodeUrlParemter($password);
             }
 
             $userPassword .= '@';
@@ -384,10 +384,15 @@ class Plugin implements BundlePluginInterface, ConfigPluginInterface, RoutingPlu
         return sprintf(
             'mysql://%s%s:%s%s',
             $userPassword,
-            $container->getParameter('database_host'),
+            $this->encodeUrlParemter($container->getParameter('database_host')),
             $container->getParameter('database_port'),
             $dbName
         );
+    }
+
+    private function encodeUrlParemter(string $parameter): string
+    {
+        return str_replace('%', '%%', urlencode($parameter));
     }
 
     private function getMailerUrl(ContainerBuilder $container): string
