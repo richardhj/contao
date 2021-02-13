@@ -48,23 +48,24 @@
 <div class="relative min-h-screen flex flex-col bg-gray-100 dark:bg-gray-800">
     {% include '@ContaoCore/Backend/Section/navbar.html.twig' %}
 
-    <div class="flex-grow flex overflow-hidden w-full max-w-8xl mx-auto">
+    <div class="flex-grow flex overflow-hidden w-full max-w-7xl mx-auto">
         {% include '@ContaoCore/Backend/Section/sidebar.html.twig' %}
 
-        <div class="flex flex-col min-w-0 flex-1 overflow-hidden">
-            <div class="flex-1 relative z-0 flex overflow-hidden">
-                <main
-                    id="main"
-                    class="flex-1 relative z-0 focus:outline-none xl:order-last lg:pl-8 xl:pl-12"
-                    tabindex="0"
-                    aria-labelledby="main_headline">
+        <div class="flex flex-col min-w-0 flex-1 overflow-hidden py-6">
+            <main
+                id="main"
+                class="max-w-7xl w-full mx-auto px-4 sm:px-6 md:px-8"
+                tabindex="0"
+                aria-labelledby="main_headline">
 
-                        <div class="px-4 lg:px-0 py-2">
-                            <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ headline|raw }}</h1>
-                        </div>
-                        <div class="bg-white border-t lg:rounded-l-md overflow-hidden shadow-lg">{{ main|raw }}</div>
-                </main>
-            </div>
+                <div class="px-4 lg:px-0 py-2">
+                    <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{{ headline|raw }}</h1>
+                </div>
+
+                <div class="space-y-8">
+                    {{ main|raw }}
+                </div>
+            </main>
         </div>
     </div>
 </div>

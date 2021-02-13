@@ -22,10 +22,14 @@ use Symfony\Component\Routing\Router;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 
+trigger_deprecation('contao/core-bundle', '4.12', 'Using the "Contao\BackendIndex" class has been deprecated and will no longer work in Contao 5.0.');
+
 /**
  * Handle back end logins and logouts.
  *
  * @author Leo Feyer <https://github.com/leofeyer>
+ *
+ * @deprecated this controller was moved to the \Contao\CoreBundle\Controller\Backend namespace
  */
 class BackendIndex extends Backend
 {
