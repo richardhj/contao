@@ -11,6 +11,7 @@
 namespace Contao;
 
 use Contao\CoreBundle\Exception\NoLayoutSpecifiedException;
+use Contao\CoreBundle\Page\PageBuilder;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -20,6 +21,15 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PageRegular extends Frontend
 {
+	private PageBuilder $pageBuilder;
+
+	public function __construct()
+	{
+		$this->pageBuilder = System::getContainer()->get(PageBuilder::class);
+
+		parent::__construct();
+	}
+
 	/**
 	 * Generate a regular page
 	 *
@@ -28,9 +38,11 @@ class PageRegular extends Frontend
 	 */
 	public function generate($objPage, $blnCheckRequest=false)
 	{
+		trigger_deprecation('contao/core-bundle', '4.0', 'Using "Contao\PageRegular::output()" has been deprecated and will no longer work in Contao 5.0. Use "Contao\PageRegular::getResponse()" instead.');
+
 		$this->prepare($objPage);
 
-		$this->Template->output($blnCheckRequest);
+		$this->pageBuilder->getResponse()->send();
 	}
 
 	/**
@@ -45,7 +57,7 @@ class PageRegular extends Frontend
 	{
 		$this->prepare($objPage);
 
-		return $this->Template->getResponse($blnCheckRequest);
+		return $this->pageBuilder->getResponse();
 	}
 
 	/**
@@ -91,92 +103,8 @@ class PageRegular extends Frontend
 		$objPage->minifyMarkup = $objLayout->minifyMarkup;
 
 		// Initialize the template
+		$this->pageBuilder = $this->pageBuilder->withTemplate($objPage->template)->withLayout($objLayout);
 		$this->createTemplate($objPage, $objLayout);
-
-		// Initialize modules and sections
-		$arrCustomSections = array();
-		$arrSections = array('header', 'left', 'right', 'main', 'footer');
-		$arrModules = StringUtil::deserialize($objLayout->modules);
-		$arrModuleIds = array();
-
-		// Filter the disabled modules
-		foreach ($arrModules as $module)
-		{
-			if ($module['enable'] ?? null)
-			{
-				$arrModuleIds[] = (int) $module['mod'];
-			}
-		}
-
-		// Get all modules in a single DB query
-		$objModules = ModuleModel::findMultipleByIds($arrModuleIds);
-
-		if ($objModules !== null || \in_array(0, $arrModuleIds, true))
-		{
-			$arrMapper = array();
-
-			// Create a mapper array in case a module is included more than once (see #4849)
-			if ($objModules !== null)
-			{
-				while ($objModules->next())
-				{
-					$arrMapper[$objModules->id] = $objModules->current();
-				}
-			}
-
-			foreach ($arrModules as $arrModule)
-			{
-				// Disabled module
-				if (!BE_USER_LOGGED_IN && !($arrModule['enable'] ?? null))
-				{
-					continue;
-				}
-
-				// Replace the module ID with the module model
-				if ($arrModule['mod'] > 0 && isset($arrMapper[$arrModule['mod']]))
-				{
-					$arrModule['mod'] = $arrMapper[$arrModule['mod']];
-				}
-
-				// Generate the modules
-				if (\in_array($arrModule['col'], $arrSections))
-				{
-					// Filter active sections (see #3273)
-					if ($objLayout->rows != '2rwh' && $objLayout->rows != '3rw' && $arrModule['col'] == 'header')
-					{
-						continue;
-					}
-
-					if ($objLayout->cols != '2cll' && $objLayout->cols != '3cl' && $arrModule['col'] == 'left')
-					{
-						continue;
-					}
-
-					if ($objLayout->cols != '2clr' && $objLayout->cols != '3cl' && $arrModule['col'] == 'right')
-					{
-						continue;
-					}
-
-					if ($objLayout->rows != '2rwf' && $objLayout->rows != '3rw' && $arrModule['col'] == 'footer')
-					{
-						continue;
-					}
-
-					$this->Template->{$arrModule['col']} .= $this->getFrontendModule($arrModule['mod'], $arrModule['col']);
-				}
-				else
-				{
-					if (!isset($arrCustomSections[$arrModule['col']]))
-					{
-						$arrCustomSections[$arrModule['col']] = '';
-					}
-
-					$arrCustomSections[$arrModule['col']] .= $this->getFrontendModule($arrModule['mod'], $arrModule['col']);
-				}
-			}
-		}
-
-		$this->Template->sections = $arrCustomSections;
 
 		// Mark RTL languages (see #7171)
 		if (($GLOBALS['TL_LANG']['MSC']['textDirection'] ?? null) == 'rtl')
@@ -193,31 +121,6 @@ class PageRegular extends Frontend
 				$this->{$callback[0]}->{$callback[1]}($objPage, $objLayout, $this);
 			}
 		}
-
-		// Set the page title and description AFTER the modules have been generated
-		$this->Template->mainTitle = $objPage->rootPageTitle;
-		$this->Template->pageTitle = $objPage->pageTitle ?: $objPage->title;
-
-		// Meta robots tag
-		$this->Template->robots = $objPage->robots ?: 'index,follow';
-
-		// Remove shy-entities (see #2709)
-		$this->Template->mainTitle = str_replace('[-]', '', $this->Template->mainTitle);
-		$this->Template->pageTitle = str_replace('[-]', '', $this->Template->pageTitle);
-
-		// Fall back to the default title tag
-		if (!$objLayout->titleTag)
-		{
-			$objLayout->titleTag = '{{page::pageTitle}} - {{page::rootPageTitle}}';
-		}
-
-		// Assign the title and description
-		$this->Template->title = strip_tags($this->replaceInsertTags($objLayout->titleTag));
-		$this->Template->description = str_replace(array("\n", "\r", '"'), array(' ', '', ''), $objPage->description);
-
-		// Body onload and body classes
-		$this->Template->onload = trim($objLayout->onload);
-		$this->Template->class = trim($objLayout->cssClass . ' ' . $objPage->cssClass);
 
 		// Execute AFTER the modules have been generated and create footer scripts first
 		$this->createFooterScripts($objLayout, $objPage);
@@ -260,14 +163,15 @@ class PageRegular extends Frontend
 	}
 
 	/**
-	 * Create a new template
+	 * Modify the page template
 	 *
 	 * @param PageModel   $objPage
 	 * @param LayoutModel $objLayout
 	 */
 	protected function createTemplate($objPage, $objLayout)
 	{
-		$this->Template = new FrontendTemplate($objPage->template);
+		$this->Template = $this->pageBuilder->getTemplate();
+
 		$this->Template->viewport = '';
 		$this->Template->framework = '';
 
@@ -397,46 +301,12 @@ class PageRegular extends Frontend
 			$GLOBALS['TL_JAVASCRIPT'] = array_merge($GLOBALS['TL_JAVASCRIPT'], $arrAppendJs);
 		}
 
-		// Initialize the sections
-		$this->Template->header = '';
-		$this->Template->left = '';
-		$this->Template->main = '';
-		$this->Template->right = '';
-		$this->Template->footer = '';
-
-		// Initialize the custom layout sections
-		$this->Template->sections = array();
-		$this->Template->positions = array();
-
-		if ($objLayout->sections)
-		{
-			$arrPositions = array();
-			$arrSections = StringUtil::deserialize($objLayout->sections);
-
-			if (!empty($arrSections) && \is_array($arrSections))
-			{
-				foreach ($arrSections as $v)
-				{
-					$arrPositions[$v['position']][$v['id']] = $v;
-				}
-			}
-
-			$this->Template->positions = $arrPositions;
-		}
-
 		// Add the check_cookies image and the request token script if needed
 		if ($objPage->alwaysLoadFromCache)
 		{
 			$GLOBALS['TL_BODY'][] = sprintf('<img src="%s" width="1" height="1" class="invisible" alt aria-hidden="true" onload="this.parentNode.removeChild(this)">', System::getContainer()->get('router')->generate('contao_frontend_check_cookies'));
 			$GLOBALS['TL_BODY'][] = sprintf('<script src="%s" async></script>', System::getContainer()->get('router')->generate('contao_frontend_request_token_script'));
 		}
-
-		// Default settings
-		$this->Template->layout = $objLayout;
-		$this->Template->language = $GLOBALS['TL_LANGUAGE'];
-		$this->Template->charset = Config::get('characterSet');
-		$this->Template->base = Environment::get('base');
-		$this->Template->isRTL = false;
 	}
 
 	/**

@@ -897,3 +897,9 @@ services:
         arguments:
             - '@Contao\CoreBundle\Util\SimpleTokenExpressionLanguage'
         public: true
+
+    Contao\CoreBundle\Page\PageBuilder:
+        arguments:
+            - '@contao.framework'
+            - '@fragment.handler'
+        public: true
