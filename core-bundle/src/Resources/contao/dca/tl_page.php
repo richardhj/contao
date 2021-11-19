@@ -15,7 +15,6 @@ use Contao\Config;
 use Contao\CoreBundle\EventListener\DataContainer\ContentCompositionListener;
 use Contao\CoreBundle\EventListener\DataContainer\PageTypeOptionsListener;
 use Contao\CoreBundle\EventListener\DataContainer\PageUrlListener;
-use Contao\CoreBundle\EventListener\Widget\HttpUrlListener;
 use Contao\CoreBundle\Exception\AccessDeniedException;
 use Contao\CoreBundle\Util\LocaleUtil;
 use Contao\DataContainer;
@@ -365,7 +364,7 @@ $GLOBALS['TL_DCA']['tl_page'] = array
 			'exclude'                 => true,
 			'search'                  => true,
 			'inputType'               => 'text',
-			'eval'                    => array('rgxp'=>HttpUrlListener::RGXP_NAME, 'trailingSlash'=>false, 'tl_class'=>'w50'),
+			'eval'                    => array('rgxp'=>'url', 'trailingSlash'=>false, 'tl_class'=>'w50'),
 			'save_callback' => array
 			(
 				array('tl_page', 'checkStaticUrl')
@@ -377,7 +376,7 @@ $GLOBALS['TL_DCA']['tl_page'] = array
 			'exclude'                 => true,
 			'search'                  => true,
 			'inputType'               => 'text',
-			'eval'                    => array('rgxp'=>HttpUrlListener::RGXP_NAME, 'trailingSlash'=>false, 'tl_class'=>'w50'),
+			'eval'                    => array('rgxp'=>'url', 'trailingSlash'=>false, 'tl_class'=>'w50'),
 			'save_callback' => array
 			(
 				array('tl_page', 'checkStaticUrl')
@@ -1033,38 +1032,38 @@ class tl_page extends Backend
 	/**
 	 * Return the SERP URL
 	 *
-	 * @param PageModel $model
+	 * @param PageModel $page
 	 *
 	 * @return string
 	 */
-	public function getSerpUrl(PageModel $model)
+	public function getSerpUrl(PageModel $page)
 	{
-		return $model->getAbsoluteUrl();
+		return $page->getAbsoluteUrl();
 	}
 
 	/**
 	 * Return the title tag from the associated page layout
 	 *
-	 * @param PageModel $model
+	 * @param PageModel $page
 	 *
 	 * @return string
 	 */
-	public function getTitleTag(PageModel $model)
+	public function getTitleTag(PageModel $page)
 	{
-		$model->loadDetails();
+		$page->loadDetails();
 
 		/** @var LayoutModel $layout */
-		if (!$layout = $model->getRelated('layout'))
+		if (!$layout = $page->getRelated('layout'))
 		{
 			return '';
 		}
 
-		global $objPage;
+		$origObjPage = $GLOBALS['objPage'] ?? null;
 
-		// Set the global page object so we can replace the insert tags
-		$objPage = $model;
+		// Override the global page object, so we can replace the insert tags
+		$GLOBALS['objPage'] = $page;
 
-		return implode(
+		$title = implode(
 			'%s',
 			array_map(
 				static function ($strVal)
@@ -1074,6 +1073,10 @@ class tl_page extends Backend
 				explode('{{page::pageTitle}}', $layout->titleTag ?: '{{page::pageTitle}} - {{page::rootPageTitle}}', 2)
 			)
 		);
+
+		$GLOBALS['objPage'] = $origObjPage;
+
+		return $title;
 	}
 
 	/**
