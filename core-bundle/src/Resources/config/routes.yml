@@ -6,6 +6,10 @@ contao_images:
     resource: .
     type: contao_images
 
+contao_data_container:
+    resource: .
+    type: contao_data_container
+
 # Redirect /contao/ to /contao
 contao_backend_redirect:
     path: /contao/

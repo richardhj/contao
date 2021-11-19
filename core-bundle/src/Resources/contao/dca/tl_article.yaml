@@ -1,0 +1,8 @@
+config:
+  ctable:
+    - 'tl_content'
+
+fields:
+  myfield:
+    exclude: true
+    inputType: text

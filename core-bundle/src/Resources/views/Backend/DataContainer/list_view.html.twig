@@ -1,0 +1,76 @@
+
+{# todo messages #}
+
+<div id="tl_buttons">
+    {# {% if 'select' === Input::get('act') || $this->ptable %} #}
+    <a href="%s" class="header_back" title="%s" accesskey="b" onclick="Backend.getScrollOffset()">%s</a>
+    {# {% 'select' !== Input::get('act') && !($GLOBALS['TL_DCA'][$this->strTable]['config']['closed'] ?? null) && !($GLOBALS['TL_DCA'][$this->strTable]['config']['notCreatable'] ?? null) %} #}
+    <a href="%s" class="header_new" title="%s" accesskey="n" onclick="Backend.getScrollOffset()">%s</a>
+
+    {# todo global buttons #}
+</div>
+
+{# if 'select' === Input::get('act') #}
+{% if false %}
+<form id="tl_select" class="tl_form'.('select' === Input::get('act') ? ' unselectable' : '').'" method="post" novalidate>
+    <div class="tl_formbody_edit">
+        <input type="hidden" name="FORM_SUBMIT" value="tl_select">
+        <input type="hidden" name="REQUEST_TOKEN" value="'.REQUEST_TOKEN.'">
+        {% endif %}
+
+        <div class="tl_listing_container list_view" id="tl_listing">
+
+            {# 'select' === Input::get('act') || 'checkbox' === $this->strPickerFieldType #}
+        {% if false %}
+            <div class="tl_select_trigger">
+                <label for="tl_select_trigger" class="tl_select_label">'.$GLOBALS['TL_LANG']['MSC']['selectAll'].'</label> <input type="checkbox" id="tl_select_trigger" onclick="Backend.toggleCheckboxes(this)" class="tl_tree_checkbox">
+            </div>
+        {% endif %}
+
+        <table class="tl_listing{{ config.label.showColumns|default ? ' showColumns' : '' }}">
+
+            {% if config.label.showColumns|default %}
+            <tr>
+                {% for field in config.label.fields|default %}
+                <th class="tl_folder_tlist {{ "col_#{field}" }}"> {{ "#{table}.#{field}.0"|trans([], "contao_#{table}") }}</th>
+               {% endfor %}
+                <th class="tl_folder_tlist tl_right_nowrap"></th>
+            </tr>
+            {% endif %}
+
+{% for row in rows %}
+            <tr class="click2edit toggle_select hover-row">
+                {% if config.label.showColumns|default %}
+                    {% for field in config.label.fields|default %}
+                       <td class="tl_file_list">{{ attribute(row.label, field) }}</td>
+                    {% endfor %}
+                    {% else %}
+                <td class="tl_file_list">{{ row.label }}</td>
+                {% endif %}
+                <td class="tl_file_list tl_right_nowrap">{{ row.buttons|raw }}</td>
+            </tr>
+{% else %}
+    <p class="tl_empty">{{ 'MSC.noResult'|trans([], 'contao_default') }}</p>';
+{% endfor %}
+
+
+</table>
+
+        {# if 'radio' === $this->strPickerFieldType #}
+        {% if false %}
+            <div class="tl_radio_reset">
+                <label for="tl_radio_reset" class="tl_radio_label">'.$GLOBALS['TL_LANG']['MSC']['resetSelected'].'</label> <input type="radio" name="picker" id="tl_radio_reset" value="" class="tl_tree_radio">
+            </div>
+        {% endif %}
+</div>
+
+    {# todo pagination #}
+
+
+</div>
+<div class="tl_formbody_submit" style="text-align:right">
+    <div class="tl_submit_container">
+        '.$strButtons.'
+    </div>
+</div>
+</form>

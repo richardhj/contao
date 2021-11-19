@@ -66,6 +66,7 @@ services:
         public: true
 
     Contao\CoreBundle\Controller\BackendController: ~
+    Contao\CoreBundle\Controller\BackendDcController: ~
 
     Contao\CoreBundle\Controller\BackendCsvImportController:
         arguments:
@@ -257,6 +258,20 @@ services:
         class: Contao\CoreBundle\Csrf\MemoryTokenStorage
         tags:
             - { name: kernel.reset, method: reset }
+
+    Contao\CoreBundle\DataContainer\Loader\DcaLoader:
+        arguments:
+            - '@cache.system'
+
+    Contao\CoreBundle\DataContainer\Loader\DcaLoaderWarmer:
+        arguments:
+            - '@contao.resource_locator'
+            - '@Contao\CoreBundle\DataContainer\Loader\DcaLoader'
+            - '%kernel.environment%'
+            - '@contao.framework'
+        tags:
+            - { name: kernel.cache_warmer }
+            - { name: kernel.event_listener, event: kernel.request, method: onKernelRequest }
 
     contao.data_collector:
         class: Contao\CoreBundle\DataCollector\ContaoDataCollector
@@ -456,6 +471,9 @@ services:
             - { name: knp_menu.menu_builder, method: buildHeaderMenu, alias: be_header_menu }
         public: true
 
+    Contao\CoreBundle\Menu\BackendModules:
+        public: true
+
     contao.menu.matcher:
         class: Knp\Menu\Matcher\Matcher
 
@@ -578,6 +596,10 @@ services:
         class: Contao\CoreBundle\Routing\Candidates\LocaleCandidates
         arguments:
             - '@Contao\CoreBundle\Routing\Page\PageRegistry'
+
+    Contao\CoreBundle\Routing\Loader\Backend\DcRoutingLoader:
+        arguments: ['@contao.framework']
+        tags: [routing.loader]
 
     contao.routing.domain_filter:
         class: Contao\CoreBundle\Routing\Matcher\DomainFilter

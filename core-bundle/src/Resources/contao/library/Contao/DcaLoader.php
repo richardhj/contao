@@ -22,6 +22,8 @@ namespace Contao;
  *     $dca->load();
  *
  * @author Leo Feyer <https://github.com/leofeyer>
+ *
+ * @internal since 4.13, to be removed in 6.0
  */
 class DcaLoader extends Controller
 {
