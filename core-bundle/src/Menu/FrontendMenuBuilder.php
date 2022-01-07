@@ -50,6 +50,13 @@ class FrontendMenuBuilder
     private Database $database;
 
     /**
+     * An internal cache to save some database queries.
+     *
+     * @var array<int, array{page:int,hasSubpages:bool}>
+     */
+    private static array $cachedPages = [];
+
+    /**
      * @param Adapter<PageModel> $pageModelAdapter
      */
     public function __construct(FactoryInterface $factory, RequestStack $requestStack, EventDispatcherInterface $dispatcher, Connection $connection, PageRegistry $pageRegistry, Adapter $pageModelAdapter, TokenChecker $tokenChecker, Security $security, LoggerInterface $logger, Database $database)
@@ -183,6 +190,11 @@ class FrontendMenuBuilder
      */
     private function findPagesByPid(int $pid, bool $showHidden = false, bool $isSitemap = false): array
     {
+        // Early return if page is known to have no subpages
+        if (self::$cachedPages[$pid] ?? null && !self::$cachedPages[$pid]['hasSubpages']) {
+            return [];
+        }
+
         $time = Date::floorToMinute();
         $blnBeUserLoggedIn = $this->tokenChecker->hasBackendUser() && $this->tokenChecker->isPreviewMode();
         $unroutableTypes = $this->pageRegistry->getUnroutableTypes();
@@ -191,6 +203,8 @@ class FrontendMenuBuilder
             ->executeQuery("SELECT p1.id, EXISTS(SELECT * FROM tl_page p2 WHERE p2.pid=p1.id AND p2.type!='root' AND p2.type NOT IN ('".implode("', '", $unroutableTypes)."')".(!$showHidden ? ($isSitemap ? " AND (p2.hide='' OR sitemap='map_always')" : " AND p2.hide=''") : '').(!$blnBeUserLoggedIn ? " AND p2.published='1' AND (p2.start='' OR p2.start<='$time') AND (p2.stop='' OR p2.stop>'$time')" : '').") AS hasSubpages FROM tl_page p1 WHERE p1.pid=:pid AND p1.type!='root' AND p1.type NOT IN ('".implode("', '", $unroutableTypes)."')".(!$showHidden ? ($isSitemap ? " AND (p1.hide='' OR sitemap='map_always')" : " AND p1.hide=''") : '').(!$blnBeUserLoggedIn ? " AND p1.published='1' AND (p1.start='' OR p1.start<='$time') AND (p1.stop='' OR p1.stop>'$time')" : '').' ORDER BY p1.sorting', ['pid' => $pid])
             ->fetchAllAssociative()
         ;
+
+        static::$cachedPages = array_merge(static::$cachedPages, array_combine(array_column($pages, 'id'), $pages));
 
         if (\count($pages) < 1) {
             return [];
