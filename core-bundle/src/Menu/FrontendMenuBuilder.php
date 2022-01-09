@@ -66,7 +66,7 @@ class FrontendMenuBuilder
         $this->database = $database;
     }
 
-    public function getMenu(ItemInterface $root, int $pid, array $options = []): ItemInterface
+    public function getMenu(int $pid, array $options = []): ?ItemInterface
     {
         $options = array_replace([
             'showHidden' => false,
@@ -76,81 +76,116 @@ class FrontendMenuBuilder
             'isSitemap' => false,
         ], $options);
 
+        if (0 === $pid) {
+            // Create an empty root item if custom pages are defined for the navigation
+            if (!empty($options['pages'])) {
+                $item = $this->factory->createItem('root');
+            }
+        } elseif (null !== ($page = $this->pageModelAdapter->findWithDetails($pid))) {
+            /** @var PageModel $page */
+            $item = $this->getItem($page, $options);
+        }
+
+        if (null === $item) {
+            return null;
+        }
+
+        // Get the children
         $pages = $this->getPages($pid, $options);
 
-        $request = $this->requestStack->getCurrentRequest();
-        /** @var PageModel|int|null $currentPage */
-        $currentPage = $request->attributes->get('pageModel');
+        /** @var PageModel $page */
+        foreach ($pages as ['page' => $childPage, 'hasSubpages' => $hasSubpages]) {
+            $child = $this->getMenu((int) $childPage->id, array_merge($options, ['loadSubpages' => $hasSubpages]));
 
-        // Support ESI requests
-        if (null !== $currentPage && !$currentPage instanceof PageModel) {
-            /** @var PageModel|null $currentPage */
-            $currentPage = $this->pageModelAdapter->findByPk($currentPage);
+            if (null !== $child) {
+                $item->addChild($child);
+            }
+        }
+
+        $level = $item->getLevel() + 1;
+        $currentPage = $this->getCurrentPage();
+
+        $displayChildren = !$options['showLevel']
+                || $options['showLevel'] > $level
+                || (!$options['hardLimit'] && $currentPage && ($currentPage->id === $page->id || \in_array($currentPage->id, $this->database->getChildRecords($page->id, 'tl_page'), false)));
+
+        $item->setDisplayChildren($displayChildren);
+
+        $this->populateMenuItem($item, $page, $options);
+
+        $menuEvent = new FrontendMenuEvent($this->factory, $item, $pid, $options);
+        $this->dispatcher->dispatch($menuEvent);
+
+        return $item;
+    }
+
+    private function getItem(PageModel $page, array $options): ?ItemInterface
+    {
+        // Skip hidden sitemap pages
+        if ($options['isSitemap'] && 'map_never' === $page->sitemap) {
+            return null;
+        }
+
+        if ($page->tabindex > 0) {
+            trigger_deprecation('contao/core-bundle', '4.12', 'Using a tabindex value greater than 0 has been deprecated and will no longer work in Contao 5.0.');
         }
 
         $isMember = $this->security->isGranted('ROLE_MEMBER');
 
-        // KnpMenu levels start at zero
-        $level = $root->getLevel() + 1;
-
-        /** @var PageModel $page */
-        foreach ($pages as ['page' => $page, 'hasSubpages' => $hasSubpages]) {
-            // Skip hidden sitemap pages
-            if ($options['isSitemap'] && 'map_never' === $page->sitemap) {
-                continue;
-            }
-
-            $page->loadDetails();
-
-            $item = $this->factory->createItem($page->title);
-
-            if ($page->tabindex > 0) {
-                trigger_deprecation('contao/core-bundle', '4.12', 'Using a tabindex value greater than 0 has been deprecated and will no longer work in Contao 5.0.');
-            }
-
-            // Hide the page if it is not protected and only visible to guests (backwards compatibility)
-            if ($page->guests && !$page->protected && $isMember) {
-                trigger_deprecation('contao/core-bundle', '4.12', 'Using the "show to guests only" feature has been deprecated an will no longer work in Contao 5.0. Use the "protect page" function instead.');
-                continue;
-            }
-
-            // PageModel->groups is an array after calling loadDetails()
-            if (
-                $page->protected && !$options['showProtected']
-                && (!$options['isSitemap'] || 'map_always' !== $page->sitemap)
-                && !$this->security->isGranted(ContaoCorePermissions::MEMBER_IN_GROUPS, $page->groups)
-            ) {
-                continue;
-            }
-
-            if (null === $href = $this->generateUri($page, $item)) {
-                continue;
-            }
-
-            $displayChildren = !$options['showLevel']
-                               || $options['showLevel'] > $level
-                               || (!$options['hardLimit'] && $currentPage && ($currentPage->id === $page->id || \in_array($currentPage->id, $this->database->getChildRecords($page->id, 'tl_page'), false)));
-            $hasSubmenu = $hasSubpages && $displayChildren;
-
-            $this->populateMenuItem($item, $request, $page, $href, $hasSubmenu, $options);
-            $root->addChild($item);
-
-            // Allow modifying empty submenu nodes
-            if (!$hasSubpages) {
-                $menuEvent = new FrontendMenuEvent($this->factory, $item, (int) $page->id, $options);
-                $this->dispatcher->dispatch($menuEvent);
-
-                continue;
-            }
-
-            $this->getMenu($item, (int) $page->id, $options);
-            $item->setDisplayChildren($displayChildren);
+        // Hide the page if it is not protected and only visible to guests (backwards compatibility)
+        if ($page->guests && !$page->protected && $isMember) {
+            trigger_deprecation('contao/core-bundle', '4.12', 'Using the "show to guests only" feature has been deprecated an will no longer work in Contao 5.0. Use the "protect page" function instead.');
+            return null;
         }
 
-        $menuEvent = new FrontendMenuEvent($this->factory, $root, $pid, $options);
-        $this->dispatcher->dispatch($menuEvent);
+        // PageModel->groups is an array after calling loadDetails()
+        if (
+            $page->protected && !$options['showProtected']
+            && (!$options['isSitemap'] || 'map_always' !== $page->sitemap)
+            && !$this->security->isGranted(ContaoCorePermissions::MEMBER_IN_GROUPS, $page->groups)
+        ) {
+            return null;
+        }
 
-        return $root;
+        $item = $this->factory->createItem($page->title);
+        $href = $this->generateUri($page, $item);
+
+        if (null === $href) {
+            return null;
+        }
+
+        $item->setUri($href);
+
+        return $item;
+    }
+
+    private function getCurrentPage(): ?PageModel
+    {
+        $request = $this->requestStack->getMainRequest();
+
+        if (null === $request || !$request->attributes->has('pageModel')) {
+            if (isset($GLOBALS['objPage']) && $GLOBALS['objPage'] instanceof PageModel) {
+                return $GLOBALS['objPage'];
+            }
+
+            return null;
+        }
+
+        $pageModel = $request->attributes->get('pageModel');
+
+        if ($pageModel instanceof PageModel) {
+            return $pageModel;
+        }
+
+        if (
+            isset($GLOBALS['objPage'])
+            && $GLOBALS['objPage'] instanceof PageModel
+            && (int) $GLOBALS['objPage']->id === (int) $pageModel
+        ) {
+            return $GLOBALS['objPage'];
+        }
+
+        return $this->pageModelAdapter->findByPk((int) $pageModel);
     }
 
     private function getPages(int $pid, array $options): array
@@ -158,6 +193,10 @@ class FrontendMenuBuilder
         // Custom page choice like, e.g., for the custom navigation module
         if (0 === $pid && $options['pages']) {
             return $this->findPagesByIds($options['pages']);
+        }
+
+        if (false === ($options['loadSubpages'] ?? null)) {
+            return [];
         }
 
         return $this->findPagesByPid($pid, (bool) $options['showHidden']);
@@ -263,27 +302,19 @@ class FrontendMenuBuilder
         }
     }
 
-    private function populateMenuItem(ItemInterface $item, Request $request, PageModel $page, ?string $href, bool $hasSubmenu, array $options = []): void
+    private function populateMenuItem(ItemInterface $item, PageModel $page, array $options = []): void
     {
-        /** @var PageModel|int|null $currentPage */
-        $currentPage = $request->attributes->get('pageModel');
-
-        // Support ESI requests
-        if (null !== $currentPage && !$currentPage instanceof PageModel) {
-            /** @var PageModel|null $currentPage */
-            $currentPage = $this->pageModelAdapter->findByPk($currentPage);
-        }
+        $request = $this->requestStack->getCurrentRequest();
+        $currentPage = $this->getCurrentPage();
 
         $extra = $page->row();
         $isTrail = $currentPage && \in_array($page->id, $currentPage->trail, false);
-
-        $item->setUri($href);
 
         // Use the path without query string to check for active pages (see #480)
         $path = ltrim($request->getPathInfo(), '/');
 
         $isActive = $currentPage
-            && $href === $path
+            && $item->getUri() === $path
             && !($options['isSitemap'] ?? false)
             && (($currentPage->id === $page->id) || ('forward' === $page->type && $currentPage->id === $page->jumpTo));
 
@@ -291,7 +322,7 @@ class FrontendMenuBuilder
 
         $extra['isActive'] = $isActive;
         $extra['isTrail'] = $isActive ? false : $isTrail;
-        $extra['class'] = $this->getCssClass($page, $currentPage, $isActive, $isTrail, $hasSubmenu);
+        $extra['class'] = $this->getCssClass($page, $currentPage, $isActive, $isTrail, $item->hasChildren() && $item->getDisplayChildren());
         $extra['title'] = StringUtil::specialchars($page->title, true);
         $extra['pageTitle'] = StringUtil::specialchars($page->pageTitle, true);
         $extra['description'] = str_replace(["\n", "\r"], [' ', ''], (string) $page->description);
